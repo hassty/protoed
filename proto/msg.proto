@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+enum enum_e {
+  OPTION1 = 0;
+  OPTION2 = 1;
+  OPTION3 = 2;
+}
+
+enum enum_e2 {
+  OPTION_A = 0;
+  OPTION_B = 1;
+  OPTION_C = 2;
+}
+
+message msg {
+  uint32 id = 1;
+  string conf = 2;
+}
+
+message msg2 {
+  enum_e e = 1;
+}
+
+message msg_t {
+  int32 i32 = 1;
+  int64 i64 = 2;
+  uint32 u32 = 3;
+  uint64 u64 = 4;
+  float f32 = 5;
+  double f64 = 6;
+  bool b = 7;
+  string s = 8;
+  enum_e e = 9;
+  msg msg = 10;
+  oneof o {
+    int32 oi32 = 11;
+    string os = 12;
+  };
+  oneof om {
+    msg omsg = 13;
+    msg2 omsg2 = 14;
+  }
+  oneof oe {
+    enum_e e1 = 15;
+    enum_e2 e2 = 16;
+  }
+  repeated int32 ri32 = 17;
+  repeated string rs = 18;
+  repeated enum_e re = 19;
+  repeated msg rm = 20;
+}

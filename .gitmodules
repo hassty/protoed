@@ -1,0 +1,6 @@
+[submodule "base"]
+	path = base
+	url = https://github.com/hassty/base.git
+[submodule "vendor/imgui"]
+	path = vendor/imgui
+	url = https://github.com/ocornut/imgui.git
