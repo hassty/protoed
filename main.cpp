@@ -11,13 +11,15 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include <GLFW/glfw3.h>
 
+#include <cppcodec/base64_rfc4648.hpp>
+
 #include <google/protobuf/message.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/reflection.h>
 
 #include "msg.pb.h"
 
-#define ENCODED_BUF_SIZE 1024
+#define ENCODED_BUF_SIZE 4096
 
 static void glfw_error_callback(int error, const char* description) {
     LOG_ERR("GLFW Error %d: %s", error, description);
@@ -336,6 +338,7 @@ static void draw_msg(google::protobuf::Message* msg) {
 }
 
 int main() {
+    using base64 = cppcodec::base64_rfc4648;
     GOOGLE_PROTOBUF_VERIFY_VERSION;
     log_init(LOG_DBG);
 
@@ -401,22 +404,56 @@ int main() {
         if (ImGui::Button("clear")) {
             msg.Clear();
         }
-        draw_msg(&msg);
+        ImGui::SameLine();
+        if (ImGui::Button("import")) {
+            ImGui::OpenPopup("import");
+        }
+
+        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
 
         static u8 encoded[ENCODED_BUF_SIZE]{};
-        ASSERT(msg.SerializeToArray(encoded, sizeof(encoded)), "encoding failed");
-        static char hex[sizeof(encoded) * 2 + 1]{};
-        for (u8 i = 0; i < msg.ByteSizeLong(); ++i) {
-            sprintf(&hex[i*2], "%02x", encoded[i]);
+        static char input[sizeof(encoded) * 2]{};
+        if (ImGui::BeginPopupModal("import", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::InputTextMultiline("b64", input, sizeof(input));
+
+            if (ImGui::Button("cancel")) {
+                MEMORY_ZERO_ARRAY(input);
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("ok")) {
+                try {
+                    std::vector<u8> raw = base64::decode(input);
+                    if (!msg.ParseFromArray(raw.data(), raw.size())) {
+                        LOG_WRN("proto parsing error");
+                        msg.Clear();
+                    } else {
+                        MEMORY_ZERO_ARRAY(input);
+                        ImGui::CloseCurrentPopup();
+                    }
+                } catch (std::exception& e) {
+                    LOG_WRN("exception: %s", e.what());
+                    msg.Clear();
+                }
+            }
+            ImGui::EndPopup();
         }
-        ImGui::InputTextMultiline("encoded", hex, sizeof(hex),
+        draw_msg(&msg);
+
+        if (!msg.SerializeToArray(encoded, sizeof(encoded))) {
+            // TODO: error modals
+            LOG_WRN("proto serialize error");
+        }
+        std::string b64 = base64::encode(encoded, msg.ByteSizeLong());
+        ImGui::InputTextMultiline("encoded", b64.data(), b64.size() + 1,
                                   ImVec2(0, 0),
                                   ImGuiInputTextFlags_AutoSelectAll
                                 | ImGuiInputTextFlags_ReadOnly // ImGuiInputTextFlags_CharsHexadecimal
                                 | ImGuiInputTextFlags_WordWrap);
 
         if (ImGui::Button("copy")) {
-            ImGui::SetClipboardText(hex);
+            ImGui::SetClipboardText(b64.c_str());
         }
 
         ImGui::End();

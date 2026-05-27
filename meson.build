@@ -45,6 +45,7 @@ generated = gen.process(proto_dir / 'msg.proto')
 includes = [
   include_directories('vendor/imgui'),
   include_directories('vendor/imgui/backends'),
+  include_directories('vendor/cppcodec'),
 ]
 
 executable(
