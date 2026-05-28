@@ -8,7 +8,7 @@ alias d := debug
 alias c := clean
 
 setup:
-    C={{ compiler }} CXX={{ compiler }}++ meson setup {{ build-dir }}
+    C={{ compiler }} CXX={{ compiler }}++ meson setup {{ build-dir }} -Ddefault_library=static --force-fallback-for=abseil-cpp,protobuf
     mkdir -p {{ build-dir }}/generated
 
 build:

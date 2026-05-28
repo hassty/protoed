@@ -1,0 +1,14 @@
+[wrap-file]
+directory = libXrandr-1.5.5
+source_url = https://xorg.freedesktop.org/releases/individual/lib/libXrandr-1.5.5.tar.xz
+source_filename = libXrandr-1.5.5.tar.xz
+source_hash = 72b922c2e765434e9e9f0960148070bd4504b288263e2868a4ccce1b7cf2767a
+source_fallback_url = https://wrapdb.mesonbuild.com/v2/libxrandr_1.5.5-1/get_source/libXrandr-1.5.5.tar.xz
+patch_filename = libxrandr_1.5.5-1_patch.zip
+patch_url = https://wrapdb.mesonbuild.com/v2/libxrandr_1.5.5-1/get_patch
+patch_fallback_url = https://github.com/mesonbuild/wrapdb/releases/download/libxrandr_1.5.5-1/libxrandr_1.5.5-1_patch.zip
+patch_hash = 82097025234528ffdfde36f5285041a25fd345c7fd42908bc481066ee0cb966a
+wrapdb_version = 1.5.5-1
+
+[provide]
+dependency_names = xrandr

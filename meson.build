@@ -9,25 +9,19 @@ project(
 add_project_arguments(['-DOS_IMPLEMENTATION_LINUX', '-DENABLE_ASSERT', '-Wno-gnu-zero-variadic-macro-arguments',], language: 'cpp')
 
 gl_dep = dependency('gl', required: true)
-glfw_dep = dependency('glfw3', required: true)
-protobuf_dep = dependency('protobuf', required: true)
+glfw_dep = dependency('glfw', fallback: ['glfw', 'glfw_dep'], required: true, static: true)
+protobuf_dep = dependency('protobuf', fallback: ['protobuf'], required: true, static: true)
+imgui_dep = dependency('imgui', fallback: ['imgui'], required: true, static: true)
 
 dependencies = [
   gl_dep,
   glfw_dep,
   protobuf_dep,
+  imgui_dep,
 ]
 
 sources = [
   'main.cpp',
-  'vendor/imgui/imgui.cpp',
-  'vendor/imgui/imgui_demo.cpp',
-  'vendor/imgui/imgui_draw.cpp',
-  'vendor/imgui/imgui_tables.cpp',
-  'vendor/imgui/imgui_widgets.cpp',
-  'vendor/imgui/misc/cpp/imgui_stdlib.cpp',
-  'vendor/imgui/backends/imgui_impl_glfw.cpp',
-  'vendor/imgui/backends/imgui_impl_opengl3.cpp',
 ]
 
 protoc = find_program('protoc')
@@ -43,8 +37,6 @@ gen = generator(protoc,
 generated = gen.process(proto_dir / 'msg.proto')
 
 includes = [
-  include_directories('vendor/imgui'),
-  include_directories('vendor/imgui/backends'),
   include_directories('vendor/cppcodec'),
 ]
 
@@ -54,6 +46,6 @@ executable(
   generated,
   include_directories: includes,
   install : true,
-  cpp_args: ['-DIMGUI_DEFINE_MATH_OPERATORS'],
   dependencies : dependencies,
+  link_args: ['-Wl,--no-as-needed']
 )

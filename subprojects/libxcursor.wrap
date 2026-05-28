@@ -1,0 +1,13 @@
+[wrap-file]
+directory = libXcursor-1.2.3
+source_url = https://xorg.freedesktop.org/releases/individual/lib/libXcursor-1.2.3.tar.xz
+source_filename = libXcursor-1.2.3.tar.xz
+source_hash = fde9402dd4cfe79da71e2d96bb980afc5e6ff4f8a7d74c159e1966afb2b2c2c0
+patch_filename = libxcursor_1.2.3-1_patch.zip
+patch_url = https://wrapdb.mesonbuild.com/v2/libxcursor_1.2.3-1/get_patch
+patch_hash = b07e8087174d41820a72d28eba2e700ba233e7c371d7637a8fea5c94efa7991e
+source_fallback_url = https://github.com/mesonbuild/wrapdb/releases/download/libxcursor_1.2.3-1/libXcursor-1.2.3.tar.xz
+wrapdb_version = 1.2.3-1
+
+[provide]
+xcursor = xcursor_dep

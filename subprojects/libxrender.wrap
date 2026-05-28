@@ -1,0 +1,13 @@
+[wrap-file]
+directory = libXrender-0.9.12
+source_url = https://xorg.freedesktop.org/releases/individual/lib/libXrender-0.9.12.tar.xz
+source_filename = libXrender-0.9.12.tar.xz
+source_hash = b832128da48b39c8d608224481743403ad1691bf4e554e4be9c174df171d1b97
+patch_filename = libxrender_0.9.12-1_patch.zip
+patch_url = https://wrapdb.mesonbuild.com/v2/libxrender_0.9.12-1/get_patch
+patch_hash = c1ce7a44467d0280efdda358667c53281e11137c2256ab0b7452a832a798cb6a
+source_fallback_url = https://github.com/mesonbuild/wrapdb/releases/download/libxrender_0.9.12-1/libXrender-0.9.12.tar.xz
+wrapdb_version = 0.9.12-1
+
+[provide]
+xrender = xrender_dep
