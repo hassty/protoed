@@ -33,55 +33,55 @@ static void draw_field_by_type(google::protobuf::Message *msg,
     const char *label = field->name().data();
 
     switch (field->cpp_type()) {
-        using namespace google::protobuf::internal;
-        case FieldDescriptorLite::CPPTYPE_INT32: {
+        using namespace google::protobuf;
+        case FieldDescriptor::CPPTYPE_INT32: {
             i32 v = reflection->GetInt32(*msg, field);
             if (ImGui::InputInt(label, &v)) {
                 reflection->SetInt32(msg, field, v);
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_INT64: {
+        case FieldDescriptor::CPPTYPE_INT64: {
             i64 v = reflection->GetInt64(*msg, field);
             i64 step = 1;
             if (ImGui::InputScalar(label, ImGuiDataType_S64, &v, &step)) {
                 reflection->SetInt64(msg, field, v);
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_UINT32: {
+        case FieldDescriptor::CPPTYPE_UINT32: {
             u32 v = reflection->GetUInt32(*msg, field);
             u32 step = 1;
             if (ImGui::InputScalar(label, ImGuiDataType_U32, &v, &step)) {
                 reflection->SetUInt32(msg, field, v);
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_UINT64: {
+        case FieldDescriptor::CPPTYPE_UINT64: {
             u64 v = reflection->GetUInt64(*msg, field);
             u64 step = 1;
             if (ImGui::InputScalar(label, ImGuiDataType_U64, &v, &step)) {
                 reflection->SetUInt64(msg, field, v);
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_FLOAT: {
+        case FieldDescriptor::CPPTYPE_FLOAT: {
             f32 v = reflection->GetFloat(*msg, field);
             f32 step = 0.1f;
             if (ImGui::InputFloat(label, &v, step)) {
                 reflection->SetFloat(msg, field, v);
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_DOUBLE: {
+        case FieldDescriptor::CPPTYPE_DOUBLE: {
             f64 v = reflection->GetDouble(*msg, field);
             f64 step = 0.1;
             if (ImGui::InputDouble(label, &v, step)) {
                 reflection->SetDouble(msg, field, v);
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_BOOL: {
+        case FieldDescriptor::CPPTYPE_BOOL: {
             bool v = reflection->GetBool(*msg, field);
             if (ImGui::Checkbox(label, &v)) {
                 reflection->SetBool(msg, field, v);
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_ENUM: {
+        case FieldDescriptor::CPPTYPE_ENUM: {
             const auto *enum_desc = field->enum_type();
             i32 v = reflection->GetEnumValue(*msg, field);
             if (ImGui::BeginCombo(label, enum_desc->FindValueByNumber(v)->name().data())) {
@@ -94,13 +94,13 @@ static void draw_field_by_type(google::protobuf::Message *msg,
                 ImGui::EndCombo();
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_STRING: {
+        case FieldDescriptor::CPPTYPE_STRING: {
             std::string v = reflection->GetString(*msg, field);
             if (ImGui::InputText(label, &v)) {
                 reflection->SetString(msg, field, v);
             }
         } break;
-        case FieldDescriptorLite::CPPTYPE_MESSAGE: {
+        case FieldDescriptor::CPPTYPE_MESSAGE: {
             auto *submsg = reflection->MutableMessage(msg, field);
             if (ImGui::TreeNode(label)) {
                 draw_msg(submsg);
@@ -117,55 +117,55 @@ static void draw_repeated_field(google::protobuf::Message *msg,
     for (u8 i = 0; i < count; ++i) {
         ImGui::PushID(i);
         switch (field->cpp_type()) {
-            using namespace google::protobuf::internal;
-            case FieldDescriptorLite::CPPTYPE_INT32: {
+            using namespace google::protobuf;
+            case FieldDescriptor::CPPTYPE_INT32: {
                 i32 v = reflection->GetRepeatedInt32(*msg, field, i);
                 if (ImGui::InputInt("##repeated", &v)) {
                     reflection->SetRepeatedInt32(msg, field, i, v);
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_INT64: {
+            case FieldDescriptor::CPPTYPE_INT64: {
                 i64 v = reflection->GetRepeatedInt64(*msg, field, i);
                 i64 step = 1;
                 if (ImGui::InputScalar("##repeated", ImGuiDataType_S64, &v, &step)) {
                     reflection->SetRepeatedInt64(msg, field, i, v);
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_UINT32: {
+            case FieldDescriptor::CPPTYPE_UINT32: {
                 u32 v = reflection->GetRepeatedUInt32(*msg, field, i);
                 u32 step = 1;
                 if (ImGui::InputScalar("##repeated", ImGuiDataType_U32, &v, &step)) {
                     reflection->SetRepeatedUInt32(msg, field, i, v);
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_UINT64: {
+            case FieldDescriptor::CPPTYPE_UINT64: {
                 u64 v = reflection->GetRepeatedUInt64(*msg, field, i);
                 u64 step = 1;
                 if (ImGui::InputScalar("##repeated", ImGuiDataType_U64, &v, &step)) {
                     reflection->SetRepeatedUInt64(msg, field, i, v);
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_FLOAT: {
+            case FieldDescriptor::CPPTYPE_FLOAT: {
                 f32 v = reflection->GetRepeatedFloat(*msg, field, i);
                 f32 step = 0.1f;
                 if (ImGui::InputScalar("##repeated", ImGuiDataType_Float, &v, &step)) {
                     reflection->SetRepeatedFloat(msg, field, i, v);
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_DOUBLE: {
+            case FieldDescriptor::CPPTYPE_DOUBLE: {
                 f64 v = reflection->GetRepeatedDouble(*msg, field, i);
                 f64 step = 0.1;
                 if (ImGui::InputScalar("##repeated", ImGuiDataType_Double, &v, &step)) {
                     reflection->SetRepeatedDouble(msg, field, i, v);
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_BOOL: {
+            case FieldDescriptor::CPPTYPE_BOOL: {
                 bool v = reflection->GetRepeatedBool(*msg, field, i);
                 if (ImGui::Checkbox("##repeated", &v)) {
                     reflection->SetRepeatedBool(msg, field, i, v);
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_ENUM: {
+            case FieldDescriptor::CPPTYPE_ENUM: {
                 const auto *enum_desc = field->enum_type();
                 i32 v = reflection->GetRepeatedEnumValue(*msg, field, i);
                 if (ImGui::BeginCombo("##repeated", enum_desc->FindValueByNumber(v)->name().data())) {
@@ -178,13 +178,13 @@ static void draw_repeated_field(google::protobuf::Message *msg,
                     ImGui::EndCombo();
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_STRING: {
+            case FieldDescriptor::CPPTYPE_STRING: {
                 std::string v = reflection->GetRepeatedString(*msg, field, i);
                 if (ImGui::InputText("##repeated", &v)) {
                     reflection->SetRepeatedString(msg, field, i, v);
                 }
             } break;
-            case FieldDescriptorLite::CPPTYPE_MESSAGE: {
+            case FieldDescriptor::CPPTYPE_MESSAGE: {
                 auto *submsg = reflection->MutableRepeatedMessage(msg, field, i);
                 if (ImGui::TreeNode(submsg->GetDescriptor()->name().data())) {
                     draw_msg(submsg);
@@ -206,35 +206,35 @@ static void draw_oneof_field(google::protobuf::Message *msg,
             const auto *oneof_option = oneof->field(i);
             if (ImGui::Selectable(oneof_option->name().data(), oneof_option == active)) {
                 switch (oneof_option->cpp_type()) {
-                    using namespace google::protobuf::internal;
-                    case FieldDescriptorLite::CPPTYPE_INT32: {
+                    using namespace google::protobuf;
+                    case FieldDescriptor::CPPTYPE_INT32: {
                         reflection->SetInt32(msg, oneof_option, 0);
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_INT64: {
+                    case FieldDescriptor::CPPTYPE_INT64: {
                         reflection->SetInt64(msg, oneof_option, 0);
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_UINT32: {
+                    case FieldDescriptor::CPPTYPE_UINT32: {
                         reflection->SetUInt32(msg, oneof_option, 0);
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_UINT64: {
+                    case FieldDescriptor::CPPTYPE_UINT64: {
                         reflection->SetUInt64(msg, oneof_option, 0);
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_FLOAT: {
+                    case FieldDescriptor::CPPTYPE_FLOAT: {
                         reflection->SetFloat(msg, oneof_option, 0.0f);
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_DOUBLE: {
+                    case FieldDescriptor::CPPTYPE_DOUBLE: {
                         reflection->SetDouble(msg, oneof_option, 0.0);
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_BOOL: {
+                    case FieldDescriptor::CPPTYPE_BOOL: {
                         reflection->SetBool(msg, oneof_option, false);
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_ENUM: {
+                    case FieldDescriptor::CPPTYPE_ENUM: {
                         reflection->SetEnum(msg, oneof_option, oneof_option->enum_type()->FindValueByNumber(0));
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_STRING: {
+                    case FieldDescriptor::CPPTYPE_STRING: {
                         reflection->SetString(msg, oneof_option, "");
                     } break;
-                    case FieldDescriptorLite::CPPTYPE_MESSAGE: {
+                    case FieldDescriptor::CPPTYPE_MESSAGE: {
                         reflection->MutableMessage(msg, oneof_option);
                     } break;
                 }
@@ -265,35 +265,35 @@ static void draw_field(google::protobuf::Message *msg,
         ImGui::SameLine();
         if (ImGui::Button("+")) {
             switch (field->cpp_type()) {
-                using namespace google::protobuf::internal;
-                case FieldDescriptorLite::CPPTYPE_INT32: {
+                using namespace google::protobuf;
+                case FieldDescriptor::CPPTYPE_INT32: {
                     reflection->AddInt32(msg, field, 0);
                 } break;
-                case FieldDescriptorLite::CPPTYPE_INT64: {
+                case FieldDescriptor::CPPTYPE_INT64: {
                     reflection->AddInt64(msg, field, 0);
                 } break;
-                case FieldDescriptorLite::CPPTYPE_UINT32: {
+                case FieldDescriptor::CPPTYPE_UINT32: {
                     reflection->AddUInt32(msg, field, 0);
                 } break;
-                case FieldDescriptorLite::CPPTYPE_UINT64: {
+                case FieldDescriptor::CPPTYPE_UINT64: {
                     reflection->AddUInt64(msg, field, 0);
                 } break;
-                case FieldDescriptorLite::CPPTYPE_FLOAT: {
+                case FieldDescriptor::CPPTYPE_FLOAT: {
                     reflection->AddFloat(msg, field, 0.0f);
                 } break;
-                case FieldDescriptorLite::CPPTYPE_DOUBLE: {
+                case FieldDescriptor::CPPTYPE_DOUBLE: {
                     reflection->AddDouble(msg, field, 0.0);
                 } break;
-                case FieldDescriptorLite::CPPTYPE_BOOL: {
+                case FieldDescriptor::CPPTYPE_BOOL: {
                     reflection->AddBool(msg, field, false);
                 } break;
-                case FieldDescriptorLite::CPPTYPE_ENUM: {
+                case FieldDescriptor::CPPTYPE_ENUM: {
                     reflection->AddEnum(msg, field, field->enum_type()->FindValueByNumber(0));
                 } break;
-                case FieldDescriptorLite::CPPTYPE_STRING: {
+                case FieldDescriptor::CPPTYPE_STRING: {
                     reflection->AddString(msg, field, "");
                 } break;
-                case FieldDescriptorLite::CPPTYPE_MESSAGE: {
+                case FieldDescriptor::CPPTYPE_MESSAGE: {
                     reflection->AddMessage(msg, field);
                 } break;
             }
