@@ -1,12 +1,10 @@
 project(
   'protoed',
   ['cpp', 'c'],
-  version : '0.1',
-  meson_version : '>= 1.3.0',
-  default_options : ['warning_level=3', 'cpp_std=c++23', 'c_std=c99'],
+  version: '0.1',
+  meson_version: '>= 1.3.0',
+  default_options: ['warning_level=3', 'cpp_std=c++20', 'c_std=c99'],
 )
-
-add_project_arguments(['-DOS_IMPLEMENTATION_LINUX', '-DENABLE_ASSERT', '-Wno-gnu-zero-variadic-macro-arguments',], language: 'cpp')
 
 gl_dep = dependency('gl', required: true)
 glfw_dep = dependency('glfw', fallback: ['glfw', 'glfw_dep'], required: true, static: true)
@@ -40,12 +38,21 @@ includes = [
   include_directories('vendor/cppcodec'),
 ]
 
+cpp_args = host_machine.system() == 'linux' \
+  ? ['-DOS_IMPLEMENTATION_LINUX', '-DENABLE_ASSERT', '-Wno-gnu-zero-variadic-macro-arguments'] \
+  : ['-DOS_IMPLEMENTATION_WINDOWS', '-DENABLE_ASSERT']
+
+link_args = host_machine.system() == 'linux' \
+  ? ['-Wl,--no-as-needed'] \
+  : []
+
 executable(
   'protoed',
   sources,
   generated,
   include_directories: includes,
-  install : true,
-  dependencies : dependencies,
-  link_args: ['-Wl,--no-as-needed']
+  install: true,
+  dependencies: dependencies,
+  cpp_args: cpp_args,
+  link_args: link_args,
 )

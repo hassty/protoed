@@ -354,7 +354,7 @@ int main() {
 
     f32 main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
     LOG_DBG("main_scale: %.2f", main_scale);
-    GLFWwindow *window = glfwCreateWindow((i32)(1280 * main_scale), (i32)(720 * main_scale), "shifrouka", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow((i32)(1280 * main_scale), (i32)(720 * main_scale), "protoed", nullptr, nullptr);
     if (window == nullptr) {
         LOG_ERR("glfwCreateWindow failed");
         exit(EXIT_FAILURE);
@@ -446,12 +446,13 @@ int main() {
             LOG_WRN("proto serialize error");
         }
         std::string b64 = base64::encode(encoded, msg.ByteSizeLong());
-        ImGui::InputTextMultiline("encoded", b64.data(), b64.size() + 1,
+        ImGui::InputTextMultiline("##encoded", b64.data(), b64.size() + 1,
                                   ImVec2(0, 0),
                                   ImGuiInputTextFlags_AutoSelectAll
                                 | ImGuiInputTextFlags_ReadOnly // ImGuiInputTextFlags_CharsHexadecimal
                                 | ImGuiInputTextFlags_WordWrap);
 
+        ImGui::SameLine();
         if (ImGui::Button("copy")) {
             ImGui::SetClipboardText(b64.c_str());
         }
