@@ -38,13 +38,17 @@ includes = [
   include_directories('vendor/cppcodec'),
 ]
 
-cpp_args = host_machine.system() == 'linux' \
-  ? ['-DOS_IMPLEMENTATION_LINUX', '-DENABLE_ASSERT', '-Wno-gnu-zero-variadic-macro-arguments'] \
-  : ['-DOS_IMPLEMENTATION_WINDOWS', '-DENABLE_ASSERT']
+cpp_args = []
 
-link_args = host_machine.system() == 'linux' \
-  ? ['-Wl,--no-as-needed'] \
-  : []
+if get_option('buildtype') == 'debug'
+  cpp_args = cpp_args + ['-DENABLE_ASSERT']
+endif
+
+if host_machine.system() == 'linux'
+  cpp_args = cpp_args + ['-DOS_IMPLEMENTATION_LINUX', '-Wno-gnu-zero-variadic-macro-arguments']
+else
+  cpp_args = cpp_args + ['-DOS_IMPLEMENTATION_WINDOWS']
+endif
 
 executable(
   'protoed',
@@ -54,5 +58,4 @@ executable(
   install: true,
   dependencies: dependencies,
   cpp_args: cpp_args,
-  link_args: link_args,
 )

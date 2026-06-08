@@ -401,7 +401,7 @@ int main() {
 
         ImGui::Text("%s", msg.GetDescriptor()->full_name().data());
         ImGui::SameLine();
-        if (ImGui::Button("clear")) {
+        if (ImGui::Button("clear") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_X)) {
             msg.Clear();
         }
         ImGui::SameLine();
@@ -439,6 +439,11 @@ int main() {
             }
             ImGui::EndPopup();
         }
+
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_V)) {
+            std::vector<u8> raw = base64::decode(ImGui::GetClipboardText(), strlen(ImGui::GetClipboardText()));
+            msg.ParseFromArray(raw.data(), raw.size());
+        }
         draw_msg(&msg);
 
         if (!msg.SerializeToArray(encoded, sizeof(encoded))) {
@@ -453,7 +458,7 @@ int main() {
                                 | ImGuiInputTextFlags_WordWrap);
 
         ImGui::SameLine();
-        if (ImGui::Button("copy")) {
+        if (ImGui::Button("copy") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_C)) {
             ImGui::SetClipboardText(b64.c_str());
         }
 

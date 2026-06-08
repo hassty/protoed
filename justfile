@@ -1,23 +1,28 @@
-build-dir := "build"
+t := "d"
+build-type := if t == "d" { "debug" } else if t == "r" { "release" } else { t }
+build-dir := "build_" + build-type
 exe := "protoed"
-compiler := "clang" # or gcc
 
+alias s := setup
 alias b := build
 alias r := run
 alias d := debug
 alias c := clean
 
 setup:
-    C={{ compiler }} CXX={{ compiler }}++ meson setup {{ build-dir }} -Ddefault_library=static --force-fallback-for=abseil-cpp,protobuf
+    C=clang CXX=clang++ meson setup {{ build-dir }} \
+        --buildtype={{ build-type }} \
+        --force-fallback-for=abseil-cpp,protobuf \
+        -Ddefault_library=static
     mkdir -p {{ build-dir }}/generated
 
 build:
     meson compile -C {{ build-dir }}
+    cp {{ build-dir }}/compile_commands.json .
 
 debug:
     gdb {{ build-dir }}/{{ exe }}
 
-[default]
 run: build
     {{ build-dir }}/{{ exe }}
 
