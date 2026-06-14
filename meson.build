@@ -22,18 +22,6 @@ sources = [
   'main.cpp',
 ]
 
-protoc = find_program('protoc')
-proto_dir = meson.current_source_dir() / 'proto'
-
-# TODO: generated dir inside build dir
-gen = generator(protoc,
-                output: ['@BASENAME@.pb.cc', '@BASENAME@.pb.h'],
-                arguments: ['--proto_path=' + proto_dir,
-                            '--cpp_out=@BUILD_DIR@',
-                            '@INPUT@'])
-
-generated = gen.process(proto_dir / 'msg.proto')
-
 includes = [
   include_directories('vendor/cppcodec'),
 ]
@@ -53,7 +41,6 @@ endif
 executable(
   'protoed',
   sources,
-  generated,
   include_directories: includes,
   install: true,
   dependencies: dependencies,

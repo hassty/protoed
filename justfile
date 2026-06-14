@@ -41,8 +41,8 @@ debug:
 debug:
     msg %USERNAME% "Babe! It's 4pm, time for your Visual Studio launching"
 
-run: build
-    {{ build-dir }}{{ PATH_SEP }}{{ exe }}
+run *args: build
+    {{ build-dir }}{{ PATH_SEP }}{{ exe }} {{ args }}
 
 
 [unix]

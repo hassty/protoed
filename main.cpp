@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <filesystem>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -17,10 +18,14 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/reflection.h>
-
-#include "msg.pb.h"
+#include <google/protobuf/dynamic_message.h>
+#include <google/protobuf/compiler/importer.h>
 
 #define ENCODED_BUF_SIZE 4096
+
+namespace fs = std::filesystem;
+namespace proto = google::protobuf;
+namespace protoc = google::protobuf::compiler;
 
 static bool tree_collapse_all = false;
 
@@ -28,15 +33,15 @@ static void glfw_error_callback(int error, const char* description) {
     LOG_ERR("GLFW Error %d: %s", error, description);
 }
 
-static void draw_msg(google::protobuf::Message* msg);
+static void draw_msg(proto::Message* msg);
 
-static void draw_field_by_type(google::protobuf::Message *msg,
-                               const google::protobuf::Reflection *reflection,
-                               const google::protobuf::FieldDescriptor *field) {
+static void draw_field_by_type(proto::Message *msg,
+                               const proto::Reflection *reflection,
+                               const proto::FieldDescriptor *field) {
     const char *label = field->name().data();
 
     switch (field->cpp_type()) {
-        using namespace google::protobuf;
+        using namespace proto;
         case FieldDescriptor::CPPTYPE_INT32: {
             i32 v = reflection->GetInt32(*msg, field);
             if (ImGui::InputInt(label, &v)) {
@@ -116,16 +121,16 @@ static void draw_field_by_type(google::protobuf::Message *msg,
     }
 }
 
-static void draw_repeated_field(google::protobuf::Message *msg,
-                                const google::protobuf::Reflection *reflection,
-                                const google::protobuf::FieldDescriptor *field,
+static void draw_repeated_field(proto::Message *msg,
+                                const proto::Reflection *reflection,
+                                const proto::FieldDescriptor *field,
                                 u8 count) {
     for (u8 i = 0; i < count; ++i) {
         ImGui::PushID(i);
         ImGui::Text("%d:", i);
         ImGui::SameLine(0, 0);
         switch (field->cpp_type()) {
-            using namespace google::protobuf;
+            using namespace proto;
             case FieldDescriptor::CPPTYPE_INT32: {
                 i32 v = reflection->GetRepeatedInt32(*msg, field, i);
                 if (ImGui::InputInt("##repeated", &v)) {
@@ -209,17 +214,17 @@ static void draw_repeated_field(google::protobuf::Message *msg,
     }
 }
 
-static void draw_oneof_field(google::protobuf::Message *msg,
-                             const google::protobuf::Reflection *reflection,
-                             const google::protobuf::OneofDescriptor *oneof,
-                             const google::protobuf::FieldDescriptor *active = nullptr) {
+static void draw_oneof_field(proto::Message *msg,
+                             const proto::Reflection *reflection,
+                             const proto::OneofDescriptor *oneof,
+                             const proto::FieldDescriptor *active = nullptr) {
     const char *preview = active ? active->name().data() : "";
     if (ImGui::BeginCombo(oneof->name().data(), preview)) {
         for (u8 i = 0; i < oneof->field_count(); ++i) {
             const auto *oneof_option = oneof->field(i);
             if (ImGui::Selectable(oneof_option->name().data(), oneof_option == active)) {
                 switch (oneof_option->cpp_type()) {
-                    using namespace google::protobuf;
+                    using namespace proto;
                     case FieldDescriptor::CPPTYPE_INT32: {
                         reflection->SetInt32(msg, oneof_option, 0);
                     } break;
@@ -263,9 +268,9 @@ static void draw_oneof_field(google::protobuf::Message *msg,
     ImGui::PopID();
 }
 
-static void draw_field(google::protobuf::Message *msg,
-                       const google::protobuf::Reflection *reflection,
-                       const google::protobuf::FieldDescriptor *field) {
+static void draw_field(proto::Message *msg,
+                       const proto::Reflection *reflection,
+                       const proto::FieldDescriptor *field) {
     if (field->is_repeated()) {
         ImGui::PushID(field->name().data());
         u8 count = reflection->FieldSize(*msg, field);
@@ -285,7 +290,7 @@ static void draw_field(google::protobuf::Message *msg,
         ImGui::SameLine();
         if (ImGui::Button("+")) {
             switch (field->cpp_type()) {
-                using namespace google::protobuf;
+                using namespace proto;
                 case FieldDescriptor::CPPTYPE_INT32: {
                     reflection->AddInt32(msg, field, 0);
                 } break;
@@ -344,7 +349,7 @@ static void draw_field(google::protobuf::Message *msg,
     }
 }
 
-static void draw_msg(google::protobuf::Message* msg) {
+static void draw_msg(proto::Message* msg) {
     const auto *descriptor = msg->GetDescriptor();
     const auto *reflection = msg->GetReflection();
 
@@ -358,10 +363,55 @@ static void draw_msg(google::protobuf::Message* msg) {
     ImGui::PopID();
 }
 
-int main() {
+enum class view {
+    import,
+    model,
+};
+static view current_view = view::import;
+
+class ErrorCollector : public protoc::MultiFileErrorCollector {
+    public:
+        void AddError(const std::string& filename, int line, int column,
+                const std::string& message) override {
+            LOG_ERR("%s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
+            exit(1);
+        }
+} error_collector;
+
+int main(i32 argc, const char *argv[]) {
     using base64 = cppcodec::base64_rfc4648;
     GOOGLE_PROTOBUF_VERIFY_VERSION;
+
     log_init(LOG_DBG);
+
+    char path[256] = {};
+    proto::Message* msg = nullptr;
+    const proto::FileDescriptor *file_desc = nullptr;
+    proto::DynamicMessageFactory factory;
+    protoc::DiskSourceTree source_tree;
+
+    protoc::Importer importer(&source_tree, &error_collector);
+
+    if (argc == 3) {
+        fs::path proto_path{argv[1]};
+        source_tree.MapPath("", proto_path.parent_path().c_str());
+        if (!fs::exists(proto_path) || !fs::is_regular_file(proto_path)) {
+            std::cerr << "file '" << argv[1] << "' not found" << std::endl;
+            exit(1);
+        }
+        file_desc = importer.Import(proto_path.filename());
+        const proto::Descriptor *desc = file_desc->FindMessageTypeByName(argv[2]);
+        if (desc == nullptr) {
+            std::cerr << "message '" << argv[2] << "' not found, possible options:\n";
+            for (i32 i = 0; i < file_desc->message_type_count(); ++i) {
+                std::cerr << "    " << file_desc->message_type(i)->name() << '\n';
+            }
+            std::flush(std::cerr);
+            exit(1);
+        }
+        msg = factory.GetPrototype(desc)->New();
+        current_view = view::model;
+    }
 
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
@@ -374,7 +424,6 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
     f32 main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
-    LOG_DBG("main_scale: %.2f", main_scale);
     GLFWwindow *window = glfwCreateWindow((i32)(1280 * main_scale), (i32)(720 * main_scale), "protoed", nullptr, nullptr);
     if (window == nullptr) {
         LOG_ERR("glfwCreateWindow failed");
@@ -400,8 +449,6 @@ int main() {
     // Our state
     ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
 
-    msg_t msg{};
-
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
@@ -420,82 +467,113 @@ int main() {
         ImGui::Begin("Main", NULL, ImGuiWindowFlags_NoMove
                                  | ImGuiWindowFlags_NoDecoration);
 
-        ImGui::Text("%s", msg.GetDescriptor()->full_name().data());
-        ImGui::SameLine();
-        if (ImGui::Button("reset") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_X)) {
-            msg.Clear();
-            tree_collapse_all = true;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("import")) {
-            ImGui::OpenPopup("import");
-        }
+        switch (current_view) {
+            case view::import: {
+                ImGui::InputText("proto path", path, sizeof(path));
+                fs::path proto_path{path};
+                if (!fs::exists(proto_path) || !fs::is_regular_file(proto_path)) {
+                    break;
+                }
 
-        ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
+                source_tree.MapPath("", proto_path.parent_path().c_str());
+                file_desc = importer.Import(proto_path.filename());
+                if (file_desc == nullptr) {
+                    LOG_ERR("file '%s' not found", proto_path.filename().c_str());
+                    exit(1);
+                }
 
-        static u8 encoded[ENCODED_BUF_SIZE]{};
-        static char input[sizeof(encoded) * 2]{};
-        if (ImGui::BeginPopupModal("import", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::InputTextMultiline("b64", input, sizeof(input));
+                if (ImGui::BeginListBox("message")) {
+                    for (i32 i = 0; i < file_desc->message_type_count(); ++i) {
+                        if (ImGui::Selectable(file_desc->message_type(i)->name().c_str())) {
+                            msg = factory.GetPrototype(file_desc->message_type(i))->New();
+                            current_view = view::model;
+                            break;
+                        }
+                    }
+                    ImGui::EndListBox();
+                }
+            } break;
+            case view::model: {
+                ImGui::Text("%s", msg->GetDescriptor()->full_name().data());
+                ImGui::SameLine();
+                if (ImGui::Button("reset") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_X)) {
+                    msg->Clear();
+                    tree_collapse_all = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("import")) {
+                    ImGui::OpenPopup("import");
+                }
 
-            if (ImGui::Button("cancel")) {
-                MEMORY_ZERO_ARRAY(input);
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("ok")) {
-                try {
-                    std::vector<u8> raw = base64::decode(input);
-                    if (!msg.ParseFromArray(raw.data(), raw.size())) {
-                        LOG_WRN("proto parsing error");
-                        msg.Clear();
-                    } else {
+                ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+                ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
+
+                static u8 encoded[ENCODED_BUF_SIZE]{};
+                static char input[sizeof(encoded) * 2]{};
+                if (ImGui::BeginPopupModal("import", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                    ImGui::InputTextMultiline("b64", input, sizeof(input));
+
+                    if (ImGui::Button("cancel")) {
                         MEMORY_ZERO_ARRAY(input);
                         ImGui::CloseCurrentPopup();
                     }
-                } catch (std::exception& e) {
-                    LOG_WRN("exception: %s", e.what());
-                    msg.Clear();
+                    ImGui::SameLine();
+                    if (ImGui::Button("ok")) {
+                        try {
+                            std::vector<u8> raw = base64::decode(input);
+                            if (!msg->ParseFromArray(raw.data(), raw.size())) {
+                                LOG_WRN("proto parsing error");
+                                msg->Clear();
+                            } else {
+                                MEMORY_ZERO_ARRAY(input);
+                                ImGui::CloseCurrentPopup();
+                            }
+                        } catch (std::exception& e) {
+                            LOG_WRN("exception: %s", e.what());
+                            msg->Clear();
+                        }
+                    }
+                    ImGui::EndPopup();
                 }
-            }
-            ImGui::EndPopup();
-        }
 
-        if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_V)) {
-            std::vector<u8> raw = base64::decode(ImGui::GetClipboardText(), strlen(ImGui::GetClipboardText()));
-            msg.ParseFromArray(raw.data(), raw.size());
-        }
-        draw_msg(&msg);
+                if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_V)) {
+                    std::vector<u8> raw = base64::decode(ImGui::GetClipboardText(), strlen(ImGui::GetClipboardText()));
+                    msg->ParseFromArray(raw.data(), raw.size());
+                }
+                draw_msg(msg);
 
-        if (!msg.SerializeToArray(encoded, sizeof(encoded))) {
-            // TODO: error modals
-            LOG_WRN("proto serialize error");
-        }
-        std::string b64 = base64::encode(encoded, msg.ByteSizeLong());
-        std::string json_str;
-        google::protobuf::util::JsonPrintOptions opts;
-        opts.add_whitespace = true;
-        opts.always_print_primitive_fields = true;
-        opts.preserve_proto_field_names = true;
-        absl::Status status = google::protobuf::util::MessageToJsonString(msg, &json_str, opts);
-        // ImGui::InputTextMultiline("##encoded", b64.data(), b64.size() + 1,
-        ImGui::InputTextMultiline("##encoded", json_str.data(), json_str.size() + 1,
-                                  ImVec2(0, 0),
-                                  ImGuiInputTextFlags_AutoSelectAll
-                                | ImGuiInputTextFlags_ReadOnly // ImGuiInputTextFlags_CharsHexadecimal
-                                | ImGuiInputTextFlags_WordWrap);
+                if (!msg->SerializeToArray(encoded, sizeof(encoded))) {
+                    // TODO: error modals
+                    LOG_WRN("proto serialize error");
+                }
 
-        ImGui::SameLine();
-        if (ImGui::Button("copy base64")) {
-            ImGui::SetClipboardText(b64.c_str());
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("copy json")) {
-            ImGui::SetClipboardText(json_str.c_str());
-        }
+                ImGui::SeparatorText("output");
+                std::string b64 = base64::encode(encoded, msg->ByteSizeLong());
+                std::string json_str;
+                static proto::util::JsonPrintOptions opts;
+                opts.add_whitespace = true;
+                ImGui::Checkbox("always print primitive fields", &opts.always_print_primitive_fields);
+                ImGui::Checkbox("preserve proto field names", &opts.preserve_proto_field_names);
+                absl::Status status = proto::util::MessageToJsonString(*msg, &json_str, opts);
+                // ImGui::InputTextMultiline("##encoded", b64.data(), b64.size() + 1,
+                ImGui::InputTextMultiline("##encoded", json_str.data(), json_str.size() + 1,
+                                          ImVec2(0, 0),
+                                          ImGuiInputTextFlags_AutoSelectAll
+                                        | ImGuiInputTextFlags_ReadOnly // ImGuiInputTextFlags_CharsHexadecimal
+                                        | ImGuiInputTextFlags_WordWrap);
 
-        tree_collapse_all = false;
+                ImGui::SameLine();
+                if (ImGui::Button("copy base64")) {
+                    ImGui::SetClipboardText(b64.c_str());
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("copy json")) {
+                    ImGui::SetClipboardText(json_str.c_str());
+                }
+
+                tree_collapse_all = false;
+            } break;
+        }
 
         ImGui::End();
         ImGui::PopStyleVar(); // ImGuiStyleVar_WindowBorderSize
@@ -510,8 +588,6 @@ int main() {
 
         glfwSwapBuffers(window);
     }
-
-    LOG_DBG("deinit");
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
