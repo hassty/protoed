@@ -13,6 +13,7 @@
 
 #include <cppcodec/base64_rfc4648.hpp>
 
+#include <google/protobuf/util/json_util.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/reflection.h>
@@ -20,6 +21,8 @@
 #include "msg.pb.h"
 
 #define ENCODED_BUF_SIZE 4096
+
+static bool tree_collapse_all = false;
 
 static void glfw_error_callback(int error, const char* description) {
     LOG_ERR("GLFW Error %d: %s", error, description);
@@ -102,6 +105,9 @@ static void draw_field_by_type(google::protobuf::Message *msg,
         } break;
         case FieldDescriptor::CPPTYPE_MESSAGE: {
             auto *submsg = reflection->MutableMessage(msg, field);
+            if (tree_collapse_all) {
+                ImGui::SetNextItemOpen(false);
+            }
             if (ImGui::TreeNode(label)) {
                 draw_msg(submsg);
                 ImGui::TreePop();
@@ -116,6 +122,8 @@ static void draw_repeated_field(google::protobuf::Message *msg,
                                 u8 count) {
     for (u8 i = 0; i < count; ++i) {
         ImGui::PushID(i);
+        ImGui::Text("%d:", i);
+        ImGui::SameLine(0, 0);
         switch (field->cpp_type()) {
             using namespace google::protobuf;
             case FieldDescriptor::CPPTYPE_INT32: {
@@ -186,6 +194,11 @@ static void draw_repeated_field(google::protobuf::Message *msg,
             } break;
             case FieldDescriptor::CPPTYPE_MESSAGE: {
                 auto *submsg = reflection->MutableRepeatedMessage(msg, field, i);
+                if (tree_collapse_all) {
+                    ImGui::SetNextItemOpen(false);
+                } else {
+                    ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
+                }
                 if (ImGui::TreeNode(submsg->GetDescriptor()->name().data())) {
                     draw_msg(submsg);
                     ImGui::TreePop();
@@ -256,9 +269,16 @@ static void draw_field(google::protobuf::Message *msg,
     if (field->is_repeated()) {
         ImGui::PushID(field->name().data());
         u8 count = reflection->FieldSize(*msg, field);
+        bool btn_minus_disabled = count == 0;
+        if (btn_minus_disabled) {
+            ImGui::BeginDisabled();
+        }
         if (ImGui::Button("-") && count > 0) {
             reflection->RemoveLast(msg, field);
             count -= 1;
+        }
+        if (btn_minus_disabled) {
+            ImGui::EndDisabled();
         }
         ImGui::SameLine();
         ImGui::Text("%s", field->name().data());
@@ -315,6 +335,7 @@ static void draw_field(google::protobuf::Message *msg,
             // TODO: bruh...
             const auto *active = reflection->GetOneofFieldDescriptor(*msg, oneof);
             if (active) {
+                ImGui::SetNextItemOpen(true, ImGuiCond_Appearing);
                 draw_field_by_type(msg, reflection, active);
             }
         }
@@ -371,7 +392,7 @@ int main() {
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(main_scale);
     style.FontScaleDpi = main_scale;
-    style.FontSizeBase = 16;
+    style.FontSizeBase = 22;
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
@@ -401,8 +422,9 @@ int main() {
 
         ImGui::Text("%s", msg.GetDescriptor()->full_name().data());
         ImGui::SameLine();
-        if (ImGui::Button("clear") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_X)) {
+        if (ImGui::Button("reset") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_X)) {
             msg.Clear();
+            tree_collapse_all = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("import")) {
@@ -451,16 +473,29 @@ int main() {
             LOG_WRN("proto serialize error");
         }
         std::string b64 = base64::encode(encoded, msg.ByteSizeLong());
-        ImGui::InputTextMultiline("##encoded", b64.data(), b64.size() + 1,
+        std::string json_str;
+        google::protobuf::util::JsonPrintOptions opts;
+        opts.add_whitespace = true;
+        opts.always_print_primitive_fields = true;
+        opts.preserve_proto_field_names = true;
+        absl::Status status = google::protobuf::util::MessageToJsonString(msg, &json_str, opts);
+        // ImGui::InputTextMultiline("##encoded", b64.data(), b64.size() + 1,
+        ImGui::InputTextMultiline("##encoded", json_str.data(), json_str.size() + 1,
                                   ImVec2(0, 0),
                                   ImGuiInputTextFlags_AutoSelectAll
                                 | ImGuiInputTextFlags_ReadOnly // ImGuiInputTextFlags_CharsHexadecimal
                                 | ImGuiInputTextFlags_WordWrap);
 
         ImGui::SameLine();
-        if (ImGui::Button("copy") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_C)) {
+        if (ImGui::Button("copy base64")) {
             ImGui::SetClipboardText(b64.c_str());
         }
+        ImGui::SameLine();
+        if (ImGui::Button("copy json")) {
+            ImGui::SetClipboardText(json_str.c_str());
+        }
+
+        tree_collapse_all = false;
 
         ImGui::End();
         ImGui::PopStyleVar(); // ImGuiStyleVar_WindowBorderSize
