@@ -441,13 +441,15 @@ int main(i32 argc, const char *argv[]) {
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(main_scale);
     style.FontScaleDpi = main_scale;
-    style.FontSizeBase = 22;
+    style.FontSizeBase = 20;
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     // Our state
     ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+    f32 left_pane_width = 0.0f;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -466,6 +468,19 @@ int main(i32 argc, const char *argv[]) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f); 
         ImGui::Begin("Main", NULL, ImGuiWindowFlags_NoMove
                                  | ImGuiWindowFlags_NoDecoration);
+
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Equal)) {
+            style.FontScaleDpi += 0.1f;
+        } else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Minus) && style.FontScaleDpi > 0.5f) {
+            style.FontScaleDpi -= 0.1f;
+        } else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_0)) {
+            style.FontScaleDpi = 1.0f;
+        }
+
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        if (left_pane_width <= 0.0f) {
+            left_pane_width = avail.x / 2.0f;
+        }
 
         switch (current_view) {
             case view::import: {
@@ -494,15 +509,16 @@ int main(i32 argc, const char *argv[]) {
                 }
             } break;
             case view::model: {
-                ImGui::Text("%s", msg->GetDescriptor()->full_name().data());
-                ImGui::SameLine();
+                ImGui::BeginChild("LeftPane", ImVec2(left_pane_width, avail.y), true);
+                ImGui::SeparatorText(msg->GetDescriptor()->full_name().data());
+
                 if (ImGui::Button("reset") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_X)) {
                     msg->Clear();
                     tree_collapse_all = true;
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("import")) {
-                    ImGui::OpenPopup("import");
+                if (ImGui::Button("import base64")) {
+                    ImGui::OpenPopup("import base64");
                 }
 
                 ImVec2 center = ImGui::GetMainViewport()->GetCenter();
@@ -510,8 +526,8 @@ int main(i32 argc, const char *argv[]) {
 
                 static u8 encoded[ENCODED_BUF_SIZE]{};
                 static char input[sizeof(encoded) * 2]{};
-                if (ImGui::BeginPopupModal("import", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-                    ImGui::InputTextMultiline("b64", input, sizeof(input));
+                if (ImGui::BeginPopupModal("import base64", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                    ImGui::InputTextMultiline("base64", input, sizeof(input));
 
                     if (ImGui::Button("cancel")) {
                         MEMORY_ZERO_ARRAY(input);
@@ -536,40 +552,81 @@ int main(i32 argc, const char *argv[]) {
                     ImGui::EndPopup();
                 }
 
-                if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_V)) {
-                    std::vector<u8> raw = base64::decode(ImGui::GetClipboardText(), strlen(ImGui::GetClipboardText()));
-                    msg->ParseFromArray(raw.data(), raw.size());
+                ImGui::SameLine();
+                if (ImGui::Button("import json")) {
+                    ImGui::OpenPopup("import json");
                 }
-                draw_msg(msg);
+                if (ImGui::BeginPopupModal("import json", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                    ImGui::InputTextMultiline("json", input, sizeof(input));
 
-                if (!msg->SerializeToArray(encoded, sizeof(encoded))) {
-                    // TODO: error modals
-                    LOG_WRN("proto serialize error");
+                    if (ImGui::Button("cancel")) {
+                        MEMORY_ZERO_ARRAY(input);
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("ok")) {
+                        absl::Status status = google::protobuf::util::JsonStringToMessage(input, msg);
+                        if (status.ok()) {
+                            MEMORY_ZERO_ARRAY(input);
+                            ImGui::CloseCurrentPopup();
+                        } else {
+                            LOG_WRN("proto parsing error: %s", status.message().data());
+                            msg->Clear();
+                        }
+                    }
+                    ImGui::EndPopup();
                 }
+
+                ImGui::Separator();
+
+                draw_msg(msg);
+                ImGui::EndChild(); // LeftPane
+
+                ImGui::SameLine(0, 0);
+                ImGui::InvisibleButton("vsplitter", ImVec2(4.0f, avail.y));
+                if (ImGui::IsItemActive()) {
+                    left_pane_width += io.MouseDelta.x;
+                }
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+                }
+
+                ImGui::SameLine(0, 0);
+                ImGui::BeginChild("RightPane", ImVec2(0, avail.y), true);
 
                 ImGui::SeparatorText("output");
-                std::string b64 = base64::encode(encoded, msg->ByteSizeLong());
-                std::string json_str;
-                static proto::util::JsonPrintOptions opts;
-                opts.add_whitespace = true;
+
+                std::string json_str = "";
+                static proto::util::JsonPrintOptions opts{
+                    .add_whitespace=true,
+                    .always_print_primitive_fields = true,
+                    .preserve_proto_field_names = true
+                };
                 ImGui::Checkbox("always print primitive fields", &opts.always_print_primitive_fields);
                 ImGui::Checkbox("preserve proto field names", &opts.preserve_proto_field_names);
                 absl::Status status = proto::util::MessageToJsonString(*msg, &json_str, opts);
-                // ImGui::InputTextMultiline("##encoded", b64.data(), b64.size() + 1,
-                ImGui::InputTextMultiline("##encoded", json_str.data(), json_str.size() + 1,
-                                          ImVec2(0, 0),
-                                          ImGuiInputTextFlags_AutoSelectAll
-                                        | ImGuiInputTextFlags_ReadOnly // ImGuiInputTextFlags_CharsHexadecimal
-                                        | ImGuiInputTextFlags_WordWrap);
 
-                ImGui::SameLine();
                 if (ImGui::Button("copy base64")) {
+                    if (!msg->SerializeToArray(encoded, sizeof(encoded))) {
+                        // TODO: error modals
+                        LOG_WRN("proto serialize error");
+                    }
+                    std::string b64 = base64::encode(encoded, msg->ByteSizeLong());
+
                     ImGui::SetClipboardText(b64.c_str());
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("copy json")) {
                     ImGui::SetClipboardText(json_str.c_str());
                 }
+
+                ImGui::InputTextMultiline("##output", json_str.data(), json_str.size() + 1,
+                                          ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y),
+                                          ImGuiInputTextFlags_AutoSelectAll
+                                        | ImGuiInputTextFlags_ReadOnly // ImGuiInputTextFlags_CharsHexadecimal
+                                        | ImGuiInputTextFlags_WordWrap);
+
+                ImGui::EndChild(); // RightPane
 
                 tree_collapse_all = false;
             } break;
