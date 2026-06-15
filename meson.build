@@ -10,16 +10,19 @@ gl_dep = dependency('gl', required: true)
 glfw_dep = dependency('glfw', fallback: ['glfw', 'glfw_dep'], required: true, static: true)
 protobuf_dep = dependency('protobuf', fallback: ['protobuf'], required: true, static: true)
 imgui_dep = dependency('imgui', fallback: ['imgui'], required: true, static: true)
+nfde_dep = dependency('nativefiledialog-extended', fallback: ['nativefiledialog-extended'], required: true, static: true)
 
 dependencies = [
   gl_dep,
   glfw_dep,
   protobuf_dep,
   imgui_dep,
+  nfde_dep,
 ]
 
 sources = [
   'main.cpp',
+  'glfw_native.cpp',
 ]
 
 includes = [

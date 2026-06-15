@@ -14,6 +14,9 @@
 
 #include <cppcodec/base64_rfc4648.hpp>
 
+#include <nfd.h>
+#include <nfd_glfw3.h>
+
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/descriptor.h>
@@ -374,9 +377,12 @@ class ErrorCollector : public protoc::MultiFileErrorCollector {
         void AddError(const std::string& filename, int line, int column,
                 const std::string& message) override {
             LOG_ERR("%s:%d:%d: %s", filename.c_str(), line, column, message.c_str());
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 } error_collector;
+
+// TODO: move to header
+extern void set_native_window(GLFWwindow *glfw_window, nfdwindowhandle_t *native_window);
 
 int main(i32 argc, const char *argv[]) {
     using base64 = cppcodec::base64_rfc4648;
@@ -397,7 +403,7 @@ int main(i32 argc, const char *argv[]) {
         source_tree.MapPath("", proto_path.parent_path().c_str());
         if (!fs::exists(proto_path) || !fs::is_regular_file(proto_path)) {
             std::cerr << "file '" << argv[1] << "' not found" << std::endl;
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         file_desc = importer.Import(proto_path.filename());
         const proto::Descriptor *desc = file_desc->FindMessageTypeByName(argv[2]);
@@ -407,7 +413,7 @@ int main(i32 argc, const char *argv[]) {
                 std::cerr << "    " << file_desc->message_type(i)->name() << '\n';
             }
             std::flush(std::cerr);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         msg = factory.GetPrototype(desc)->New();
         current_view = view::model;
@@ -416,6 +422,11 @@ int main(i32 argc, const char *argv[]) {
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
         LOG_ERR("glfwInit failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (NFD_Init() != NFD_OKAY) {
+        LOG_ERR("NFD_Init failed: %s", NFD_GetError());
         exit(EXIT_FAILURE);
     }
 
@@ -484,7 +495,23 @@ int main(i32 argc, const char *argv[]) {
 
         switch (current_view) {
             case view::import: {
-                ImGui::InputText("proto path", path, sizeof(path));
+                ImGui::InputText("##proto_path", path, sizeof(path));
+                ImGui::SetItemTooltip("path to proto schema definition file");
+
+                nfdu8filteritem_t filters[] = { {"Proto files", "proto"} };
+                nfdopendialogu8args_t args = {};
+                nfdu8char_t *out_path;
+                args.filterList = filters;
+                args.filterCount = ARRAY_LENGTH(filters);
+                ImGui::SameLine();
+                if (ImGui::Button("browse")) {
+                    set_native_window(window, &args.parentWindow);
+
+                    if (NFD_OpenDialogU8_With(&out_path, &args) == NFD_OKAY) {
+                        strcpy(path, out_path);
+                        NFD_FreePathU8(out_path);
+                    }
+                }
                 fs::path proto_path{path};
                 if (!fs::exists(proto_path) || !fs::is_regular_file(proto_path)) {
                     break;
@@ -494,7 +521,7 @@ int main(i32 argc, const char *argv[]) {
                 file_desc = importer.Import(proto_path.filename());
                 if (file_desc == nullptr) {
                     LOG_ERR("file '%s' not found", proto_path.filename().c_str());
-                    exit(1);
+                    exit(EXIT_FAILURE);
                 }
 
                 if (ImGui::BeginListBox("message")) {
@@ -645,6 +672,8 @@ int main(i32 argc, const char *argv[]) {
 
         glfwSwapBuffers(window);
     }
+
+    NFD_Quit();
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
