@@ -27,6 +27,8 @@
 #include <google/protobuf/compiler/importer.h>
 
 #define ENCODED_BUF_SIZE 4096
+#define ICON_FILE_BROWSER ""
+#define ICON_CROSS ""
 
 namespace fs = std::filesystem;
 namespace proto = google::protobuf;
@@ -294,17 +296,19 @@ static void draw_field(proto::Message *msg,
         if (btn_minus_disabled) {
             ImGui::BeginDisabled();
         }
-        if (ImGui::Button("-") && count > 0) {
+        f32 button_size = ImGui::GetFrameHeight();
+        if (ImGui::Button("-", ImVec2(button_size, button_size)) && count > 0) {
             reflection->RemoveLast(msg, field);
             count -= 1;
         }
+        ImGui::SetItemTooltip("remove repeated item");
         if (btn_minus_disabled) {
             ImGui::EndDisabled();
         }
         ImGui::SameLine();
         ImGui::Text("%s", field->name().data());
         ImGui::SameLine();
-        if (ImGui::Button("+")) {
+        if (ImGui::Button("+", ImVec2(button_size, button_size))) {
             switch (field->cpp_type()) {
                 using namespace proto;
                 case FieldDescriptor::CPPTYPE_INT32: {
@@ -339,6 +343,7 @@ static void draw_field(proto::Message *msg,
                 } break;
             }
         }
+        ImGui::SetItemTooltip("add repeated item");
         ImGui::PopID();
         draw_repeated_field(msg, reflection, field, count);
         return;
@@ -476,7 +481,7 @@ int main(i32 argc, const char *argv[]) {
     // Our state
     ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
 
-    f32 left_pane_width = 0.0f;
+    f32 left_pane_width = FLT_MIN;
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -496,22 +501,37 @@ int main(i32 argc, const char *argv[]) {
         ImGui::Begin("Main", NULL, ImGuiWindowFlags_NoMove
                                  | ImGuiWindowFlags_NoDecoration);
 
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Equal)) {
             style.FontScaleDpi += 0.1f;
         } else if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Minus) && style.FontScaleDpi > 0.5f) {
             style.FontScaleDpi -= 0.1f;
         } else if (ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_0)) {
             style.FontScaleDpi = 1.0f;
+            left_pane_width = FLT_MIN; // restore 50/50 split
         }
 
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        if (left_pane_width <= 0.0f) {
+        if (left_pane_width == FLT_MIN) {
             left_pane_width = avail.x / 2.0f;
         }
 
         switch (current_view) {
             case view::import: {
-                ImGui::InputText("##proto_path", path, sizeof(path));
+                ImVec2 group_size = ImVec2(avail.x * 0.8, avail.y * 0.8);
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail.x - group_size.x) / 2.0f);
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (avail.y - group_size.y) / 2.0f);
+
+                ImGui::BeginGroup();
+                ImGui::PushItemWidth(avail.x * 0.8);
+
+                ImVec2 clip_rect_min = ImGui::GetCursorScreenPos();
+                ImVec2 clip_rect_max = ImVec2(clip_rect_min.x + group_size.x, avail.y);
+                ImGui::PushClipRect(clip_rect_min, clip_rect_max, true);
+                ImGui::SeparatorText("proto file path");
+                ImGui::PopClipRect();
+
+                ImGui::InputText("##proto_path", path, sizeof(path), ImGuiInputTextFlags_ElideLeft);
                 ImGui::SetItemTooltip("path to proto schema definition file");
 
                 nfdu8filteritem_t filters[] = { {"Proto files", "proto"} };
@@ -529,8 +549,11 @@ int main(i32 argc, const char *argv[]) {
                         NFD_FreePathU8(out_path);
                     }
                 }
+                ImGui::SetItemTooltip("open file browser");
                 fs::path proto_path{path};
                 if (!fs::exists(proto_path) || !fs::is_regular_file(proto_path)) {
+                    ImGui::PopItemWidth();
+                    ImGui::EndGroup();
                     break;
                 }
 
@@ -541,16 +564,32 @@ int main(i32 argc, const char *argv[]) {
                     exit(EXIT_FAILURE);
                 }
 
-                if (ImGui::BeginListBox("message")) {
+                ImGui::PushClipRect(clip_rect_min, clip_rect_max, true);
+                ImGui::SeparatorText("messages");
+                ImGui::PopClipRect();
+
+                static ImGuiTextFilter filter;
+                filter.Draw("##filter");
+                ImGui::SetItemTooltip("filter messages");
+
+                if (ImGui::BeginListBox("##messages", ImVec2(0, group_size.y - ImGui::GetCursorPosY()))) {
                     for (i32 i = 0; i < file_desc->message_type_count(); ++i) {
+                        const char *msg_name = file_desc->message_type(i)->name().c_str();
+                        if (!filter.PassFilter(msg_name)) {
+                            continue;
+                        }
+
                         if (ImGui::Selectable(file_desc->message_type(i)->name().c_str())) {
                             msg = factory.GetPrototype(file_desc->message_type(i))->New();
                             current_view = view::model;
                             break;
                         }
+                        ImGui::SetItemTooltip("click to select '%s' message", msg_name);
                     }
                     ImGui::EndListBox();
                 }
+                ImGui::PopItemWidth();
+                ImGui::EndGroup();
             } break;
             case view::model: {
                 ImGui::BeginChild("LeftPane", ImVec2(left_pane_width, avail.y), true);
