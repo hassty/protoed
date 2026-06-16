@@ -12,6 +12,8 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include <GLFW/glfw3.h>
 
+#include "fonts/DroidSansMNerdFontMono-Regular.font.h"
+
 #include <cppcodec/base64_rfc4648.hpp>
 
 #include <nfd.h>
@@ -265,8 +267,19 @@ static void draw_oneof_field(proto::Message *msg,
     }
     ImGui::SameLine();
     ImGui::PushID(oneof->name().data());
-    if (ImGui::Button("x")) {
+    if (!active) {
+        ImGui::BeginDisabled();
+    }
+    ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 1.0f, 1.0f, 0.2f));
+    if (ImGui::Button(ICON_CROSS)) {
         reflection->ClearOneof(msg, oneof);
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::SetItemTooltip("reset oneof");
+    if (!active) {
+        ImGui::EndDisabled();
     }
     ImGui::PopID();
 }
@@ -447,6 +460,9 @@ int main(i32 argc, const char *argv[]) {
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.IniFilename = NULL;
 
+    io.Fonts->ClearFonts();
+    io.Fonts->AddFontFromMemoryCompressedTTF(custom_font_compressed_data, custom_font_compressed_size);
+
     ImGui::StyleColorsDark();
 
     ImGuiStyle& style = ImGui::GetStyle();
@@ -504,7 +520,8 @@ int main(i32 argc, const char *argv[]) {
                 args.filterList = filters;
                 args.filterCount = ARRAY_LENGTH(filters);
                 ImGui::SameLine();
-                if (ImGui::Button("browse")) {
+                f32 button_size = ImGui::GetFrameHeight();
+                if (ImGui::Button(ICON_FILE_BROWSER, ImVec2(button_size, button_size))) {
                     set_native_window(window, &args.parentWindow);
 
                     if (NFD_OpenDialogU8_With(&out_path, &args) == NFD_OKAY) {
