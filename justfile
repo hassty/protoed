@@ -22,7 +22,7 @@ setup:
         "if [ ! -d " + build-dir + " ]; then " \
     } }} \
     meson setup {{ build-dir }} \
-        --buildtype={{ build-type }} \
+        {{ if build-type == "release" { '-Doptimization=s -Ddebug=false -Db_ndebug=true -Db_lto=true -Db_lundef=true -Dstrip=true -Dcpp_args="-ffunction-sections -fdata-sections -fno-rtti" -Dcpp_link_args="-Wl,--gc-sections -Wl,--strip-all -s"' } else { "--buildtype=" + build-type } }} \
         --force-fallback-for=abseil-cpp,protobuf \
         -Ddefault_library=static \
     {{ if os_family() == "windows" { ")" } else { "; fi" } }}
