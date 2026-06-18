@@ -413,6 +413,7 @@ static struct TabItem {
     bool want_focus;
     proto::Message *msg;
     const proto::FileDescriptor *file_desc;
+    bool should_close;
 } tab_items[MAX_TABS];
 static usize tabs_opened = 1;
 
@@ -433,6 +434,7 @@ int main(i32 argc, const char *argv[]) {
             std::cerr << "file '" << argv[1] << "' not found" << std::endl;
             exit(EXIT_FAILURE);
         }
+
         TabItem *first_tab = &tab_items[0];
         first_tab->file_desc = importer.Import(proto_path.filename());
         if (first_tab->file_desc->message_type_count() == 1) {
@@ -450,6 +452,7 @@ int main(i32 argc, const char *argv[]) {
             }
             first_tab->msg = factory.GetPrototype(desc)->New();
         }
+
         first_tab->active_view = view::model;
     }
 
@@ -478,7 +481,7 @@ int main(i32 argc, const char *argv[]) {
     glfwSwapInterval(1); // enable vsync
 
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = NULL;
 
     io.Fonts->ClearFonts();
@@ -517,6 +520,34 @@ int main(i32 argc, const char *argv[]) {
         ImGui::Begin("Main", NULL, ImGuiWindowFlags_NoMove
                                  | ImGuiWindowFlags_NoDecoration);
 
+        static usize current_tab = -1UL;
+        if (current_tab != -1UL && ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_W)) {
+            tab_items[current_tab].should_close = true;
+        }
+
+        // disable default ctrl+tab behavior
+        ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Tab, ImGuiInputFlags_RouteGlobal);
+        ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Tab, ImGuiInputFlags_RouteGlobal);
+
+        // TODO: tab switching needs polish
+        static isize selected_tab = -1;
+        bool keyboard_tab_switch_requested = false;
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Tab, true)) {
+            if (io.KeyShift) {
+                selected_tab = (selected_tab - 1) % tabs_opened;
+            } else {
+                selected_tab = (selected_tab + 1) % tabs_opened;
+            }
+            keyboard_tab_switch_requested = true;
+        }
+
+        for (u8 i = 0; i < 9; ++i) {
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | ImGuiKey_1 + i)) {
+                selected_tab = CLAMP_TOP(i, tabs_opened - 1);
+                keyboard_tab_switch_requested = true;
+            }
+        }
+
         // TODO: ImGuiTabBarFlags_Reorderable 
         if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_FittingPolicyScroll)) {
             if (tabs_opened < MAX_TABS) {
@@ -530,6 +561,11 @@ int main(i32 argc, const char *argv[]) {
                 ImGui::PopStyleColor(3);
             }
 
+            if (tabs_opened == 0) {
+                MEMORY_ZERO_STRUCT(&tab_items[0]);
+                tabs_opened = 1;
+            }
+
             for (usize t = 0; t < tabs_opened; ++t) {
                 bool open = true;
                 TabItem *tab = &tab_items[t];
@@ -537,7 +573,7 @@ int main(i32 argc, const char *argv[]) {
                 ImGui::PushID(t);
                 if (ImGui::BeginTabItem(tab->msg ? tab->msg->GetDescriptor()->name().c_str() : "new tab",
                                         &open,
-                                        ImGuiTabItemFlags_None)) {
+                                        keyboard_tab_switch_requested && t == (usize)selected_tab ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)) {
                     f32 wheel = io.MouseWheel;
 
                     ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -555,6 +591,13 @@ int main(i32 argc, const char *argv[]) {
                         left_pane_width = avail.x / 2.0f;
                     }
 
+                    bool just_activated = current_tab != t;
+                    current_tab = t;
+
+                    if (just_activated) {
+                        ImGui::SetKeyboardFocusHere();
+                    }
+
                     switch (tab->active_view) {
                         case view::import: {
                             ImVec2 group_size = ImVec2(avail.x * 0.8, avail.y * 0.8);
@@ -570,13 +613,7 @@ int main(i32 argc, const char *argv[]) {
                             ImGui::SeparatorText("proto file path");
                             ImGui::PopClipRect();
 
-                            static usize current_tab = -1;
-                            bool just_activated = current_tab != t;
-                            current_tab = t;
-
-                            if (just_activated) {
-                                ImGui::SetKeyboardFocusHere();
-                            }
+                            // TODO: why does not this input get cleared when closing tab with ctrl+w?
                             ImGui::InputText("##proto_path", tab->path, sizeof(tab->path), ImGuiInputTextFlags_ElideLeft);
                             ImGui::SetItemTooltip("path to proto schema definition file");
 
@@ -776,12 +813,18 @@ int main(i32 argc, const char *argv[]) {
                     ImGui::EndTabItem();
                 }
 
-                if (!open) {
-                    MEMORY_ZERO_STRUCT(tab);
+                if (!open || tab->should_close) {
+                    delete tab->msg;
+                    for (usize i = t; i < tabs_opened - 1; ++i) {
+                        tab_items[i] = tab_items[i + 1];
+                    }
+                    MEMORY_ZERO_STRUCT(&tab_items[tabs_opened - 1]);
                     tabs_opened -= 1;
                 }
+
                 ImGui::PopID();
             }
+            keyboard_tab_switch_requested = false;
             ImGui::EndTabBar(); // Tabs
         }
 
