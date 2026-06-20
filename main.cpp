@@ -491,8 +491,39 @@ int main(i32 argc, const char *argv[]) {
 
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(main_scale);
+    style.ChildRounding = 6.0f;
     style.FontScaleDpi = main_scale;
     style.FontSizeBase = 20;
+    style.FrameBorderSize = 1.0f;
+    style.FrameRounding = 5.0f;
+    style.PopupRounding = 6.0f;
+    style.ScrollbarPadding = 1.0f;
+    style.ScrollbarSize = 8.0f;
+    style.TabRounding = 6.0f;
+    style.WindowRounding = 6.0f;
+
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_ButtonActive]           = ImVec4(0.42f, 0.83f, 0.63f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]          = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
+    colors[ImGuiCol_Button]                 = ImVec4(0.43f, 0.71f, 0.57f, 0.71f);
+    colors[ImGuiCol_CheckMark]              = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]          = ImVec4(0.42f, 0.83f, 0.63f, 0.58f);
+    colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.44f, 0.71f, 0.57f, 0.40f);
+    colors[ImGuiCol_FrameBg]                = ImVec4(0.17f, 0.17f, 0.17f, 1.00f);
+    colors[ImGuiCol_HeaderActive]           = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
+    colors[ImGuiCol_HeaderHovered]          = ImVec4(0.44f, 0.71f, 0.57f, 0.80f);
+    colors[ImGuiCol_Header]                 = ImVec4(0.44f, 0.71f, 0.57f, 0.31f);
+    colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.24f, 0.24f, 0.24f, 0.35f);
+    colors[ImGuiCol_PopupBg]                = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
+    colors[ImGuiCol_SliderGrab]             = ImVec4(0.43f, 0.71f, 0.57f, 1.00f);
+    colors[ImGuiCol_TabHovered]             = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
+    colors[ImGuiCol_TabSelectedOverline]    = ImVec4(0.42f, 0.83f, 0.63f, 1.00f);
+    colors[ImGuiCol_TabSelected]            = ImVec4(0.35f, 0.64f, 0.50f, 1.00f);
+    colors[ImGuiCol_Tab]                    = ImVec4(0.44f, 0.71f, 0.57f, 0.59f);
+    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.44f, 0.71f, 0.57f, 0.35f);
+    colors[ImGuiCol_TitleBgActive]          = ImVec4(0.43f, 0.71f, 0.57f, 1.00f);
+    colors[ImGuiCol_WindowBg]               = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
@@ -542,13 +573,18 @@ int main(i32 argc, const char *argv[]) {
         }
 
         for (u8 i = 0; i < 9; ++i) {
-            if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | ImGuiKey_1 + i)) {
+            if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | (ImGuiKey_1 + i))) {
                 selected_tab = CLAMP_TOP(i, tabs_opened - 1);
                 keyboard_tab_switch_requested = true;
             }
         }
+        if (ImGui::IsKeyChordPressed(ImGuiMod_Alt | ImGuiKey_0)) {
+            selected_tab = tabs_opened - 1;
+            keyboard_tab_switch_requested = true;
+        }
 
         // TODO: ImGuiTabBarFlags_Reorderable 
+        ImGui::PushStyleVarX(ImGuiStyleVar_ItemInnerSpacing, 0.5f);
         if (ImGui::BeginTabBar("Tabs", ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_FittingPolicyScroll)) {
             if (tabs_opened < MAX_TABS) {
                 ImGui::PushStyleColor(ImGuiCol_Tab,        ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
@@ -560,6 +596,7 @@ int main(i32 argc, const char *argv[]) {
                 }
                 ImGui::PopStyleColor(3);
             }
+            ImGui::PopStyleVar(); // ImGuiStyleVar_ItemInnerSpacing
 
             if (tabs_opened == 0) {
                 MEMORY_ZERO_STRUCT(&tab_items[0]);
@@ -573,7 +610,9 @@ int main(i32 argc, const char *argv[]) {
                 ImGui::PushID(t);
                 if (ImGui::BeginTabItem(tab->msg ? tab->msg->GetDescriptor()->name().c_str() : "new tab",
                                         &open,
-                                        keyboard_tab_switch_requested && t == (usize)selected_tab ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None)) {
+                                        keyboard_tab_switch_requested && t == (usize)selected_tab
+                                            ? ImGuiTabItemFlags_SetSelected
+                                            : ImGuiTabItemFlags_None)) {
                     f32 wheel = io.MouseWheel;
 
                     ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -686,7 +725,7 @@ int main(i32 argc, const char *argv[]) {
                             ImGui::EndGroup();
                         } break;
                         case view::model: {
-                            ImGui::BeginChild("LeftPane", ImVec2(left_pane_width, avail.y), true);
+                            ImGui::BeginChild("LeftPane", ImVec2(left_pane_width, avail.y), ImGuiChildFlags_Borders);
 
                             if (ImGui::Button("reset") || ImGui::IsKeyChordPressed(ImGuiMod_Ctrl | ImGuiKey_X)) {
                                 tab->msg->Clear();
@@ -771,7 +810,7 @@ int main(i32 argc, const char *argv[]) {
                             }
 
                             ImGui::SameLine(0, 0);
-                            ImGui::BeginChild("RightPane", ImVec2(0, avail.y), true);
+                            ImGui::BeginChild("RightPane", ImVec2(0, avail.y), ImGuiChildFlags_Borders);
 
                             ImGui::SeparatorText("output");
 
