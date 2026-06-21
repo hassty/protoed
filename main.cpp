@@ -16,8 +16,10 @@
 
 #include <cppcodec/base64_rfc4648.hpp>
 
+#ifdef NATIVE_FILE_DIALOGS
 #include <nfd.h>
 #include <nfd_glfw3.h>
+#endif
 
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/message.h>
@@ -404,8 +406,10 @@ class ErrorCollector : public protoc::MultiFileErrorCollector {
         }
 } error_collector;
 
+#ifdef NATIVE_FILE_DIALOGS
 // TODO: move to header
 extern void set_native_window(GLFWwindow *glfw_window, nfdwindowhandle_t *native_window);
+#endif
 
 static struct TabItem {
     view active_view;
@@ -462,10 +466,12 @@ int main(i32 argc, const char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+#ifdef NATIVE_FILE_DIALOGS
     if (NFD_Init() != NFD_OKAY) {
         LOG_ERR("NFD_Init failed: %s", NFD_GetError());
         exit(EXIT_FAILURE);
     }
+#endif
 
     const char *glsl_version = "#version 130";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -656,6 +662,7 @@ int main(i32 argc, const char *argv[]) {
                             ImGui::InputText("##proto_path", tab->path, sizeof(tab->path), ImGuiInputTextFlags_ElideLeft);
                             ImGui::SetItemTooltip("path to proto schema definition file");
 
+#ifdef NATIVE_FILE_DIALOGS
                             nfdu8filteritem_t filters[] = { {"Proto files", "proto"} };
                             nfdopendialogu8args_t args = {};
                             nfdu8char_t *out_path;
@@ -672,6 +679,7 @@ int main(i32 argc, const char *argv[]) {
                                 }
                             }
                             ImGui::SetItemTooltip("open file browser");
+#endif
                             fs::path proto_path{tab->path};
                             if (!fs::exists(proto_path) || !fs::is_regular_file(proto_path)) {
                                 ImGui::PopItemWidth();
@@ -918,7 +926,9 @@ int main(i32 argc, const char *argv[]) {
         glfwSwapBuffers(window);
     }
 
+#ifdef NATIVE_FILE_DIALOGS
     NFD_Quit();
+#endif
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

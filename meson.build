@@ -8,9 +8,9 @@ project(
 
 gl_dep = dependency('gl', required: true)
 glfw_dep = dependency('glfw', fallback: ['glfw', 'glfw_dep'], required: true, static: true)
-protobuf_dep = dependency('protobuf', fallback: ['protobuf'], required: true, static: true)
-imgui_dep = dependency('imgui', fallback: ['imgui'], required: true, static: true)
-nfde_dep = dependency('nativefiledialog-extended', fallback: ['nativefiledialog-extended'], required: true, static: true)
+protobuf_dep = dependency('protobuf', required: true, static: true)
+imgui_dep = dependency('imgui', required: true, static: true)
+nfde_dep = dependency('nativefiledialog-extended', required: get_option('native_file_dialogs'), static: true)
 
 dependencies = [
   gl_dep,
@@ -22,7 +22,6 @@ dependencies = [
 
 sources = [
   'main.cpp',
-  'glfw_native.cpp',
 ]
 
 includes = [
@@ -39,6 +38,11 @@ if host_machine.system() == 'linux'
   cpp_args = cpp_args + ['-DOS_IMPLEMENTATION_LINUX', '-Wno-gnu-zero-variadic-macro-arguments']
 else
   cpp_args = cpp_args + ['-DOS_IMPLEMENTATION_WINDOWS']
+endif
+
+if nfde_dep.found()
+  sources = sources + ['nativefiledialog_glfw.cpp']
+  cpp_args = cpp_args + ['-DNATIVE_FILE_DIALOGS']
 endif
 
 executable(

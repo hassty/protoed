@@ -1,0 +1,1 @@
+option('native_file_dialogs', type: 'feature', value: 'enabled')
