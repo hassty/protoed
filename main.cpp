@@ -514,7 +514,7 @@ int main(i32 argc, const char *argv[]) {
     colors[ImGuiCol_HeaderHovered]          = ImVec4(0.44f, 0.71f, 0.57f, 0.80f);
     colors[ImGuiCol_Header]                 = ImVec4(0.44f, 0.71f, 0.57f, 0.31f);
     colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.24f, 0.24f, 0.24f, 0.35f);
-    colors[ImGuiCol_PopupBg]                = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
     colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
     colors[ImGuiCol_SliderGrab]             = ImVec4(0.43f, 0.71f, 0.57f, 1.00f);
     colors[ImGuiCol_TabHovered]             = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
@@ -523,7 +523,7 @@ int main(i32 argc, const char *argv[]) {
     colors[ImGuiCol_Tab]                    = ImVec4(0.44f, 0.71f, 0.57f, 0.59f);
     colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.44f, 0.71f, 0.57f, 0.35f);
     colors[ImGuiCol_TitleBgActive]          = ImVec4(0.43f, 0.71f, 0.57f, 1.00f);
-    colors[ImGuiCol_WindowBg]               = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_WindowBg]               = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
@@ -731,25 +731,42 @@ int main(i32 argc, const char *argv[]) {
                                 tab->msg->Clear();
                                 tree_collapse_all = true;
                             }
+
                             ImGui::SameLine();
                             if (ImGui::Button("import base64")) {
                                 ImGui::OpenPopup("import base64");
                             }
 
-                            ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-                            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5, 0.5));
-
                             static u8 encoded[ENCODED_BUF_SIZE]{};
                             static char input[sizeof(encoded) * 2]{};
-                            if (ImGui::BeginPopupModal("import base64", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-                                ImGui::InputTextMultiline("base64", input, sizeof(input));
 
-                                if (ImGui::Button("cancel")) {
+                            ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+                            ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5, 0.5));
+                            ImGui::SetNextWindowContentSize(ImVec2(avail.x * 0.8, avail.y * 0.6));
+                            if (ImGui::BeginPopupModal("import base64", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                                ImVec2 avail_popup = ImGui::GetContentRegionAvail();
+                                static bool just_activated = true;
+                                if (just_activated) {
+                                    ImGui::SetKeyboardFocusHere();
+                                    just_activated = false;
+                                }
+                                ImGui::InputTextMultiline("##base64", input, sizeof(input),
+                                                          ImVec2(avail_popup.x,
+                                                                 avail_popup.y - ImGui::GetFrameHeightWithSpacing()),
+                                                          ImGuiInputTextFlags_WordWrap);
+
+                                if (ImGui::Button("cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
                                     MEMORY_ZERO_ARRAY(input);
                                     ImGui::CloseCurrentPopup();
+                                    just_activated = true;
                                 }
                                 ImGui::SameLine();
-                                if (ImGui::Button("ok")) {
+                                if (ImGui::Button("clear")) {
+                                    MEMORY_ZERO_ARRAY(input);
+                                    just_activated = true;
+                                }
+                                ImGui::SameLine();
+                                if (ImGui::Button("import")) {
                                     try {
                                         std::vector<u8> raw = base64::decode(input);
                                         if (!tab->msg->ParseFromArray(raw.data(), raw.size())) {
@@ -758,6 +775,7 @@ int main(i32 argc, const char *argv[]) {
                                         } else {
                                             MEMORY_ZERO_ARRAY(input);
                                             ImGui::CloseCurrentPopup();
+                                            just_activated = true;
                                         }
                                     } catch (std::exception& e) {
                                         LOG_WRN("exception: %s", e.what());
@@ -771,19 +789,38 @@ int main(i32 argc, const char *argv[]) {
                             if (ImGui::Button("import json")) {
                                 ImGui::OpenPopup("import json");
                             }
-                            if (ImGui::BeginPopupModal("import json", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-                                ImGui::InputTextMultiline("json", input, sizeof(input));
 
-                                if (ImGui::Button("cancel")) {
+                            ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5, 0.5));
+                            ImGui::SetNextWindowContentSize(ImVec2(avail.x * 0.8, avail.y * 0.8));
+                            if (ImGui::BeginPopupModal("import json", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                                ImVec2 avail_popup = ImGui::GetContentRegionAvail();
+                                static bool just_activated = true;
+                                if (just_activated) {
+                                    ImGui::SetKeyboardFocusHere();
+                                    just_activated = false;
+                                }
+                                ImGui::InputTextMultiline("##json", input, sizeof(input),
+                                                          ImVec2(avail_popup.x,
+                                                                 avail_popup.y - ImGui::GetFrameHeightWithSpacing()),
+                                                                 ImGuiInputTextFlags_WordWrap);
+
+                                if (ImGui::Button("cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
                                     MEMORY_ZERO_ARRAY(input);
                                     ImGui::CloseCurrentPopup();
+                                    just_activated = true;
                                 }
                                 ImGui::SameLine();
-                                if (ImGui::Button("ok")) {
+                                if (ImGui::Button("clear")) {
+                                    MEMORY_ZERO_ARRAY(input);
+                                    just_activated = true;
+                                }
+                                ImGui::SameLine();
+                                if (ImGui::Button("import")) {
                                     absl::Status status = google::protobuf::util::JsonStringToMessage(input, tab->msg);
                                     if (status.ok()) {
                                         MEMORY_ZERO_ARRAY(input);
                                         ImGui::CloseCurrentPopup();
+                                        just_activated = true;
                                     } else {
                                         LOG_WRN("proto parsing error: %s", status.message().data());
                                         tab->msg->Clear();
