@@ -283,9 +283,11 @@ static void draw_oneof_field(proto::Message *msg,
     ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f, 1.0f, 1.0f, 0.2f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
     if (ImGui::Button(ICON_CROSS)) {
         reflection->ClearOneof(msg, oneof);
     }
+    ImGui::PopStyleVar(); // ImGuiStyleVar_FrameBorderSize
     ImGui::PopStyleColor(3);
     ImGui::SetItemTooltip("reset oneof");
     if (!active) {
@@ -509,27 +511,25 @@ int main(i32 argc, const char *argv[]) {
     style.WindowRounding = 6.0f;
 
     ImVec4* colors = style.Colors;
-    colors[ImGuiCol_ButtonActive]           = ImVec4(0.42f, 0.83f, 0.63f, 1.00f);
-    colors[ImGuiCol_ButtonHovered]          = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
-    colors[ImGuiCol_Button]                 = ImVec4(0.43f, 0.71f, 0.57f, 0.71f);
-    colors[ImGuiCol_CheckMark]              = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
-    colors[ImGuiCol_FrameBgActive]          = ImVec4(0.42f, 0.83f, 0.63f, 0.58f);
-    colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.44f, 0.71f, 0.57f, 0.40f);
-    colors[ImGuiCol_FrameBg]                = ImVec4(0.17f, 0.17f, 0.17f, 1.00f);
-    colors[ImGuiCol_HeaderActive]           = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
-    colors[ImGuiCol_HeaderHovered]          = ImVec4(0.44f, 0.71f, 0.57f, 0.80f);
-    colors[ImGuiCol_Header]                 = ImVec4(0.44f, 0.71f, 0.57f, 0.31f);
-    colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.24f, 0.24f, 0.24f, 0.35f);
-    colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
-    colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
-    colors[ImGuiCol_SliderGrab]             = ImVec4(0.43f, 0.71f, 0.57f, 1.00f);
-    colors[ImGuiCol_TabHovered]             = ImVec4(0.44f, 0.71f, 0.57f, 1.00f);
-    colors[ImGuiCol_TabSelectedOverline]    = ImVec4(0.42f, 0.83f, 0.63f, 1.00f);
-    colors[ImGuiCol_TabSelected]            = ImVec4(0.35f, 0.64f, 0.50f, 1.00f);
-    colors[ImGuiCol_Tab]                    = ImVec4(0.44f, 0.71f, 0.57f, 0.59f);
-    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.44f, 0.71f, 0.57f, 0.35f);
-    colors[ImGuiCol_TitleBgActive]          = ImVec4(0.43f, 0.71f, 0.57f, 1.00f);
-    colors[ImGuiCol_WindowBg]               = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+    colors[ImGuiCol_ButtonActive]           = ImVec4(0.67f, 0.80f, 1.00f, 1.00f);
+    colors[ImGuiCol_Button]                 = ImVec4(0.54f, 0.71f, 0.98f, 0.87f);
+    colors[ImGuiCol_ButtonHovered]          = ImVec4(0.54f, 0.71f, 0.98f, 1.00f);
+    colors[ImGuiCol_CheckMark]              = ImVec4(0.54f, 0.71f, 0.98f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]          = ImVec4(0.54f, 0.71f, 0.98f, 0.58f);
+    colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.54f, 0.71f, 0.98f, 0.40f);
+    colors[ImGuiCol_FrameBg]                = ImVec4(0.12f, 0.12f, 0.17f, 0.79f);
+    colors[ImGuiCol_HeaderActive]           = ImVec4(0.54f, 0.71f, 0.98f, 1.00f);
+    colors[ImGuiCol_HeaderHovered]          = ImVec4(0.54f, 0.71f, 0.98f, 0.80f);
+    colors[ImGuiCol_Header]                 = ImVec4(0.54f, 0.71f, 0.98f, 0.86f);
+    colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.54f, 0.71f, 0.98f, 1.00f);
+    colors[ImGuiCol_SliderGrab]             = ImVec4(0.54f, 0.71f, 0.98f, 0.86f);
+    colors[ImGuiCol_TabHovered]             = ImVec4(0.54f, 0.71f, 0.98f, 1.00f);
+    colors[ImGuiCol_Tab]                    = ImVec4(0.54f, 0.71f, 0.98f, 0.50f);
+    colors[ImGuiCol_TabSelected]            = ImVec4(0.54f, 0.71f, 0.98f, 0.87f);
+    colors[ImGuiCol_Tab]                    = ImVec4(0.54f, 0.71f, 0.98f, 0.87f);
+    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.54f, 0.71f, 0.98f, 0.29f);
+    colors[ImGuiCol_TitleBgActive]          = ImVec4(0.54f, 0.71f, 0.98f, 1.00f);
+    colors[ImGuiCol_WindowBg]               = ImVec4(0.07f, 0.07f, 0.11f, 1.00f);
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
